@@ -82,7 +82,14 @@ class TaskManager:
             script = (request.script or "").strip()
             if not script:
                 self._set(task_id, progress=12, message=f"Writing script with {request.provider}")
-                script = generate_script(request.provider, request.topic, request.language, request.duration)
+                model = request.ollama_model if request.provider == "ollama" else None
+                script = generate_script(
+                    request.provider,
+                    request.topic,
+                    request.language,
+                    request.duration,
+                    model=model,
+                )
             (folder / "script.txt").write_text(script, encoding="utf-8")
 
             self._set(task_id, progress=28, message="Generating voice-over")
@@ -107,17 +114,14 @@ class TaskManager:
             outputs: list[str] = []
             for index in range(request.batch_count):
                 base = 42 + int(index * (48 / max(1, request.batch_count)))
-                self._set(
-                    task_id,
-                    progress=min(base, 88),
-                    message=f"Rendering video {index + 1}/{request.batch_count}",
-                )
+                self._set(task_id, progress=min(base, 88), message=f"Rendering video {index + 1}/{request.batch_count}")
                 ordered = visual_materials[index:] + visual_materials[:index] if visual_materials else []
                 background = make_background(
                     ordered,
                     folder / f"background-{index + 1:02}.mp4",
                     audio_seconds,
                     request.aspect_ratio,
+                    clip_duration=request.clip_duration,
                 )
                 output = folder / f"video-{index + 1:02}.mp4"
                 render_final(
@@ -126,26 +130,18 @@ class TaskManager:
                     output=output,
                     srt=srt,
                     subtitle_position=request.subtitle_position,
+                    subtitle_font_size=request.subtitle_font_size,
+                    subtitle_color=request.subtitle_color,
+                    subtitle_outline_color=request.subtitle_outline_color,
+                    subtitle_outline_width=request.subtitle_outline_width,
                     bgm=bgm,
                     bgm_volume=request.bgm_volume,
                 )
                 outputs.append(output.name)
 
-            self._set(
-                task_id,
-                state=TaskState.completed,
-                progress=100,
-                message="Video ready",
-                output_files=outputs,
-            )
+            self._set(task_id, state=TaskState.completed, progress=100, message="Video ready", output_files=outputs)
         except Exception as exc:
-            self._set(
-                task_id,
-                state=TaskState.failed,
-                progress=100,
-                message="Generation failed",
-                error=str(exc)[:2000],
-            )
+            self._set(task_id, state=TaskState.failed, progress=100, message="Generation failed", error=str(exc)[:2000])
 
 
 task_manager = TaskManager()

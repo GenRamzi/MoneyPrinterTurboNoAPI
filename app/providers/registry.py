@@ -3,7 +3,6 @@ from __future__ import annotations
 import platform
 import shutil
 import subprocess
-from dataclasses import asdict
 
 from app.models.schemas import ProviderInfo
 from app.providers.base import ProviderError, TextProvider
@@ -42,8 +41,14 @@ class ProviderRegistry:
             )
         return result
 
-    def generate(self, provider_id: str, prompt: str) -> str:
-        return self.get(provider_id).generate(prompt)
+    def generate(self, provider_id: str, prompt: str, model: str | None = None) -> str:
+        return self.get(provider_id).generate(prompt, model=model)
+
+    def ollama_models(self) -> list[str]:
+        provider = self.get("ollama")
+        if isinstance(provider, OllamaProvider):
+            return provider.list_models()
+        return []
 
     def open_login(self, provider_id: str) -> str:
         provider = self.get(provider_id)

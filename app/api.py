@@ -6,12 +6,14 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from app.core.config import settings
-from app.models.schemas import GenerateRequest, TaskInfo
+from app.models.schemas import GenerateRequest, TaskInfo, VoicePreviewRequest
 from app.providers.registry import provider_registry
 from app.services.media import AUDIO_EXT, IMAGE_EXT, VIDEO_EXT
 from app.services.tasks import task_manager
+from app.services.tts import synthesize
 
 router = APIRouter(prefix="/api")
 ALLOWED_UPLOADS = VIDEO_EXT | IMAGE_EXT | AUDIO_EXT
@@ -32,6 +34,11 @@ def providers():
     return provider_registry.list()
 
 
+@router.get("/providers/ollama/models")
+def ollama_models() -> dict[str, list[str]]:
+    return {"models": provider_registry.ollama_models()}
+
+
 @router.post("/providers/{provider_id}/login")
 def provider_login(provider_id: str) -> dict:
     try:
@@ -48,11 +55,30 @@ def voices() -> list[dict[str, str]]:
         {"id": "ar-SA-ZariyahNeural", "name": "Zariyah — Arabic (Saudi)"},
         {"id": "ar-EG-ShakirNeural", "name": "Shakir — Arabic (Egypt)"},
         {"id": "ar-EG-SalmaNeural", "name": "Salma — Arabic (Egypt)"},
+        {"id": "ar-AE-HamdanNeural", "name": "Hamdan — Arabic (UAE)"},
+        {"id": "ar-AE-FatimaNeural", "name": "Fatima — Arabic (UAE)"},
         {"id": "en-US-AndrewNeural", "name": "Andrew — English (US)"},
         {"id": "en-US-AvaNeural", "name": "Ava — English (US)"},
         {"id": "en-GB-RyanNeural", "name": "Ryan — English (UK)"},
         {"id": "en-GB-SoniaNeural", "name": "Sonia — English (UK)"},
     ]
+
+
+@router.post("/voices/preview")
+def voice_preview(request: VoicePreviewRequest):
+    preview_id = f"preview-{uuid.uuid4().hex}.mp3"
+    path = settings.uploads_dir / preview_id
+    try:
+        synthesize(request.text, request.voice, path)
+    except Exception as exc:
+        path.unlink(missing_ok=True)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return FileResponse(
+        path,
+        media_type="audio/mpeg",
+        filename="voice-preview.mp3",
+        background=BackgroundTask(path.unlink, missing_ok=True),
+    )
 
 
 @router.post("/uploads")

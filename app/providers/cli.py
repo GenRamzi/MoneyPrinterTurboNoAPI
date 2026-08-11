@@ -48,13 +48,13 @@ class CodexProvider(TextProvider):
         ok = p.returncode == 0 and "logged in" in text.lower() and "not logged in" not in text.lower()
         return ok, text or ("Connected" if ok else "Not connected")
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, model: str | None = None) -> str:
         if not self.installed():
             raise ProviderError("Install Codex CLI first")
-        p = _run(
-            ["codex", "exec", "--ephemeral", "--skip-git-repo-check", prompt],
-            timeout=240,
-        )
+        args = ["codex", "exec", "--ephemeral", "--skip-git-repo-check"]
+        if model:
+            args += ["--model", model]
+        p = _run([*args, prompt], timeout=240)
         if p.returncode != 0:
             raise ProviderError((p.stderr or p.stdout).strip() or "Codex failed")
         text = p.stdout.strip()
@@ -89,10 +89,13 @@ class ClaudeProvider(TextProvider):
             ok = False
         return ok, text or ("Connected" if ok else "Not connected")
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, model: str | None = None) -> str:
         if not self.installed():
             raise ProviderError("Install Claude Code first")
-        p = _run(["claude", "-p", prompt], timeout=240)
+        args = ["claude", "-p", prompt]
+        if model:
+            args += ["--model", model]
+        p = _run(args, timeout=240)
         if p.returncode != 0:
             raise ProviderError((p.stderr or p.stdout).strip() or "Claude failed")
         text = p.stdout.strip()
@@ -119,14 +122,15 @@ class GeminiProvider(TextProvider):
     def auth_status(self) -> tuple[bool | None, str]:
         if not self.installed():
             return False, "Gemini CLI is not installed"
-        # Gemini CLI does not expose a stable auth-status command across releases.
-        # We intentionally do not inspect/copy token files; installed is reported and a live prompt validates auth.
         return None, "Installed — connection is verified on first generation"
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, model: str | None = None) -> str:
         if not self.installed():
             raise ProviderError("Install Gemini CLI first")
-        p = _run(["gemini", "-p", prompt, "--output-format", "json"], timeout=240)
+        args = ["gemini", "-p", prompt, "--output-format", "json"]
+        if model:
+            args += ["--model", model]
+        p = _run(args, timeout=240)
         if p.returncode != 0:
             raise ProviderError((p.stderr or p.stdout).strip() or "Gemini failed")
         raw = p.stdout.strip()
@@ -148,7 +152,7 @@ class OllamaProvider(TextProvider):
         kind="local",
         executable="ollama",
         login_command=None,
-        install_hint="Install Ollama from the official Ollama app, then pull a model (for example: ollama pull qwen3:8b).",
+        install_hint="Install Ollama, then pull any model you want (Qwen, DeepSeek, Llama, Mistral, etc.).",
         login_hint="No account or API key required.",
     )
 
@@ -162,10 +166,22 @@ class OllamaProvider(TextProvider):
         ok = p.returncode == 0
         return ok, "Local runtime ready" if ok else (p.stderr.strip() or "Ollama is not running")
 
-    def generate(self, prompt: str) -> str:
+    def list_models(self) -> list[str]:
+        if not self.installed():
+            return []
+        p = _run(["ollama", "list"], timeout=20)
+        if p.returncode != 0:
+            return []
+        lines = [line.strip() for line in p.stdout.splitlines() if line.strip()]
+        if len(lines) <= 1:
+            return []
+        return [line.split()[0] for line in lines[1:] if line.split()]
+
+    def generate(self, prompt: str, model: str | None = None) -> str:
         if not self.installed():
             raise ProviderError("Install Ollama first")
-        p = _run(["ollama", "run", settings.default_ollama_model, prompt], timeout=300)
+        selected = (model or settings.default_ollama_model).strip()
+        p = _run(["ollama", "run", selected, prompt], timeout=300)
         if p.returncode != 0:
             raise ProviderError((p.stderr or p.stdout).strip() or "Ollama failed")
         text = p.stdout.strip()
