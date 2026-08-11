@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.DS_Store
+.pytest_cache/
+.ruff_cache/
+storage/*
+!storage/.gitkeep
+*.log

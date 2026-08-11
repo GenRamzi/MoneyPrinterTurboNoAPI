@@ -1,0 +1,12 @@
+services:
+  moneyprinter-noapi:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./storage:/app/storage
+    environment:
+      MPT_HOST: 0.0.0.0
+      MPT_PORT: 8501
+      MPT_OLLAMA_MODEL: ${MPT_OLLAMA_MODEL:-qwen3:8b}
+    restart: unless-stopped
