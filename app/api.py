@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+import shutil
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+
+from app.core.config import settings
+from app.models.schemas import GenerateRequest, TaskInfo
+from app.providers.registry import provider_registry
+from app.services.media import AUDIO_EXT, IMAGE_EXT, VIDEO_EXT
+from app.services.tasks import task_manager
+
+router = APIRouter(prefix="/api")
+ALLOWED_UPLOADS = VIDEO_EXT | IMAGE_EXT | AUDIO_EXT
+
+
+@router.get("/health")
+def health() -> dict:
+    return {
+        "ok": True,
+        "app": settings.app_name,
+        "ffmpeg": bool(shutil.which(settings.ffmpeg_bin)),
+        "ffprobe": bool(shutil.which(settings.ffprobe_bin)),
+    }
+
+
+@router.get("/providers")
+def providers():
+    return provider_registry.list()
+
+
+@router.post("/providers/{provider_id}/login")
+def provider_login(provider_id: str) -> dict:
+    try:
+        message = provider_registry.open_login(provider_id)
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"ok": True, "message": message}
+
+
+@router.get("/voices")
+def voices() -> list[dict[str, str]]:
+    return [
+        {"id": "ar-SA-HamedNeural", "name": "Hamed — Arabic (Saudi)"},
+        {"id": "ar-SA-ZariyahNeural", "name": "Zariyah — Arabic (Saudi)"},
+        {"id": "ar-EG-ShakirNeural", "name": "Shakir — Arabic (Egypt)"},
+        {"id": "ar-EG-SalmaNeural", "name": "Salma — Arabic (Egypt)"},
+        {"id": "en-US-AndrewNeural", "name": "Andrew — English (US)"},
+        {"id": "en-US-AvaNeural", "name": "Ava — English (US)"},
+        {"id": "en-GB-RyanNeural", "name": "Ryan — English (UK)"},
+        {"id": "en-GB-SoniaNeural", "name": "Sonia — English (UK)"},
+    ]
+
+
+@router.post("/uploads")
+async def upload(files: list[UploadFile] = File(...)) -> list[dict[str, str]]:
+    saved: list[dict[str, str]] = []
+    max_bytes = settings.max_upload_mb * 1024 * 1024
+    for file in files:
+        suffix = Path(file.filename or "").suffix.lower()
+        if suffix not in ALLOWED_UPLOADS:
+            raise HTTPException(status_code=415, detail=f"Unsupported file type: {suffix or 'unknown'}")
+        data = await file.read(max_bytes + 1)
+        if len(data) > max_bytes:
+            raise HTTPException(status_code=413, detail=f"File exceeds {settings.max_upload_mb} MB")
+        file_id = f"{uuid.uuid4().hex}{suffix}"
+        target = settings.uploads_dir / file_id
+        target.write_bytes(data)
+        saved.append({"id": file_id, "name": file.filename or file_id})
+    return saved
+
+
+@router.post("/tasks", response_model=TaskInfo)
+def create_task(request: GenerateRequest) -> TaskInfo:
+    return task_manager.create(request)
+
+
+@router.get("/tasks", response_model=list[TaskInfo])
+def list_tasks() -> list[TaskInfo]:
+    return task_manager.list()
+
+
+@router.get("/tasks/{task_id}", response_model=TaskInfo)
+def get_task(task_id: str) -> TaskInfo:
+    task = task_manager.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
+@router.get("/tasks/{task_id}/files/{filename}")
+def task_file(task_id: str, filename: str):
+    if Path(task_id).name != task_id or Path(filename).name != filename:
+        raise HTTPException(status_code=400, detail="Invalid path")
+    task = task_manager.get(task_id)
+    if not task or filename not in task.output_files:
+        raise HTTPException(status_code=404, detail="File not found")
+    path = (settings.tasks_dir / task_id / filename).resolve()
+    if path.parent != (settings.tasks_dir / task_id).resolve() or not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path, media_type="video/mp4", filename=filename)

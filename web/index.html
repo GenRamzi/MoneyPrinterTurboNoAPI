@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#0b0c10" />
+  <title>MoneyPrinterTurbo NoAPI</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">M</div><div><b>MoneyPrinter</b><span>Turbo NoAPI</span></div></div>
+      <nav>
+        <button class="nav-item active" data-scroll="creator"><span>✦</span> الاستوديو</button>
+        <button class="nav-item" data-scroll="accounts"><span>◎</span> حسابات الذكاء</button>
+        <button class="nav-item" data-scroll="results"><span>▣</span> النتائج</button>
+      </nav>
+      <div class="side-status" id="systemStatus"><span class="dot"></span><div><b>جاري الفحص</b><small>FFmpeg & services</small></div></div>
+      <div class="side-note">Local-first • No API keys<br/>Your credentials stay in official CLIs.</div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div><p class="eyebrow">AI VIDEO STUDIO</p><h1>حوّل فكرتك إلى فيديو، بدون مفاتيح API.</h1></div>
+        <div class="top-actions"><a href="/docs" target="_blank" class="ghost">API Docs</a><button id="refreshProviders" class="ghost">تحديث الحسابات</button></div>
+      </header>
+
+      <section id="accounts" class="panel accounts-panel">
+        <div class="section-head"><div><p class="eyebrow">CONNECTED AI</p><h2>حسابات الذكاء الاصطناعي</h2></div><p>سجّل الدخول عبر الأدوات الرسمية. لا يوجد LLM Settings ولا نسخ ولصق لمفاتيح.</p></div>
+        <div id="providerGrid" class="provider-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+      </section>
+
+      <section id="creator" class="creator-grid">
+        <form id="createForm" class="panel creator-card">
+          <div class="section-head compact"><div><p class="eyebrow">CREATE</p><h2>مشروع جديد</h2></div><span class="badge">4 خطوات في شاشة واحدة</span></div>
+
+          <div class="field full"><label>موضوع الفيديو</label><textarea id="topic" rows="3" placeholder="مثال: 5 أفكار عملية لزيادة التركيز أثناء العمل" required></textarea></div>
+
+          <div class="form-grid">
+            <div class="field"><label>النموذج</label><select id="provider"></select></div>
+            <div class="field"><label>اللغة</label><select id="language"><option>Arabic</option><option>English</option><option>French</option><option>Spanish</option><option>German</option></select></div>
+            <div class="field"><label>المدة المستهدفة</label><div class="range-wrap"><input id="duration" type="range" min="10" max="180" value="45"/><output id="durationOut">45 ثانية</output></div></div>
+            <div class="field"><label>المقاس</label><div class="segmented"><label><input type="radio" name="aspect" value="9:16" checked><span>9:16</span></label><label><input type="radio" name="aspect" value="16:9"><span>16:9</span></label><label><input type="radio" name="aspect" value="1:1"><span>1:1</span></label></div></div>
+            <div class="field"><label>الصوت</label><select id="voice"></select></div>
+            <div class="field"><label>عدد النسخ</label><select id="batch"><option value="1">1 فيديو</option><option value="2">2 فيديو</option><option value="3">3 فيديوهات</option><option value="4">4 فيديوهات</option></select></div>
+          </div>
+
+          <details class="advanced"><summary>خيارات متقدمة</summary><div class="advanced-body">
+            <div class="field full"><label>نص مخصص <small>اتركه فارغًا ليكتبه الذكاء الاصطناعي</small></label><textarea id="script" rows="6" placeholder="اختياري"></textarea></div>
+            <div class="field"><label class="check"><input id="subtitles" type="checkbox" checked><span>تضمين الترجمة النصية</span></label></div>
+            <div class="field"><label>مكان الترجمة</label><select id="subtitlePosition"><option value="bottom">أسفل</option><option value="center">وسط</option></select></div>
+          </div></details>
+
+          <div class="upload-zone" id="uploadZone"><input id="materials" type="file" accept="video/*,image/*" multiple hidden><div class="upload-icon">＋</div><div><b>أضف صورًا أو فيديوهات</b><span>اسحب الملفات هنا أو اضغط للاختيار. بدون مواد سيُنشأ خلفية نظيفة تلقائيًا.</span></div><button type="button" class="mini" id="pickMaterials">اختيار ملفات</button></div>
+          <div id="materialList" class="file-list"></div>
+
+          <div class="bgm-row"><div class="field"><label>موسيقى خلفية <small>اختياري</small></label><input id="bgm" type="file" accept="audio/*" /></div><div class="field"><label>مستوى الموسيقى</label><input id="bgmVolume" type="range" min="0" max="0.5" step="0.01" value="0.12"></div></div>
+
+          <button id="generateBtn" type="submit" class="primary"><span>✦</span> إنشاء الفيديو الآن</button>
+        </form>
+
+        <aside class="panel task-card">
+          <div class="preview-frame"><div class="preview-noise"></div><div class="preview-copy"><span class="pulse-dot"></span><p id="previewStatus">جاهز للإنشاء</p><small id="previewHint">اختر حساب AI وأضف فكرتك</small></div></div>
+          <div id="progressBox" class="progress-box hidden"><div class="progress-meta"><b id="progressMessage">Processing</b><span id="progressPercent">0%</span></div><div class="progress-track"><div id="progressBar"></div></div></div>
+          <div class="feature-list"><div><span>01</span><p><b>Script</b><small>كتابة تلقائية أو نصك الخاص</small></p></div><div><span>02</span><p><b>Voice</b><small>Edge neural voices بدون مفتاح</small></p></div><div><span>03</span><p><b>Compose</b><small>مواد + ترجمة + موسيقى + FFmpeg</small></p></div></div>
+        </aside>
+      </section>
+
+      <section id="results" class="panel results-panel">
+        <div class="section-head"><div><p class="eyebrow">OUTPUT</p><h2>النتائج</h2></div><p id="resultsCaption">ستظهر الفيديوهات المكتملة هنا.</p></div>
+        <div id="resultsGrid" class="results-grid"><div class="empty-state"><span>▣</span><p>لم يتم إنشاء فيديو بعد</p></div></div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
