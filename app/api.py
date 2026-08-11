@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from app.core.config import settings
 from app.models.schemas import GenerateRequest, TaskInfo, VoicePreviewRequest
@@ -70,8 +71,14 @@ def voice_preview(request: VoicePreviewRequest):
     try:
         synthesize(request.text, request.voice, path)
     except Exception as exc:
+        path.unlink(missing_ok=True)
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return FileResponse(path, media_type="audio/mpeg", filename="voice-preview.mp3")
+    return FileResponse(
+        path,
+        media_type="audio/mpeg",
+        filename="voice-preview.mp3",
+        background=BackgroundTask(path.unlink, missing_ok=True),
+    )
 
 
 @router.post("/uploads")
