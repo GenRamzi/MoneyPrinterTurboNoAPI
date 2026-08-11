@@ -19,6 +19,12 @@ Return ONLY the narration text.
 """.strip()
 
 
-def generate_script(provider: str, topic: str, language: str, duration: int) -> str:
+def generate_script(
+    provider: str,
+    topic: str,
+    language: str,
+    duration: int,
+    model: str | None = None,
+) -> str:
     prompt = build_script_prompt(topic, language, duration)
-    return provider_registry.generate(provider, prompt).strip()
+    return provider_registry.generate(provider, prompt, model=model).strip()

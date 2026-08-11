@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import subprocess
 from pathlib import Path
@@ -63,7 +64,13 @@ def normalize_material(source: Path, target: Path, seconds: float, size: tuple[i
     return target
 
 
-def make_background(materials: list[Path], target: Path, seconds: float, aspect_ratio: str) -> Path:
+def make_background(
+    materials: list[Path],
+    target: Path,
+    seconds: float,
+    aspect_ratio: str,
+    clip_duration: float = 4.0,
+) -> Path:
     size = dimensions(aspect_ratio)
     if not materials:
         w, h = size
@@ -75,19 +82,32 @@ def make_background(materials: list[Path], target: Path, seconds: float, aspect_
 
     valid = [path for path in materials if path.suffix.lower() in VIDEO_EXT | IMAGE_EXT]
     if not valid:
-        return make_background([], target, seconds, aspect_ratio)
+        return make_background([], target, seconds, aspect_ratio, clip_duration)
 
-    segment_seconds = seconds / len(valid)
+    segment_count = max(1, math.ceil(seconds / clip_duration))
     segments: list[Path] = []
-    for index, source in enumerate(valid):
-        segment = target.parent / f"segment-{index:03}.mp4"
+    elapsed = 0.0
+    for index in range(segment_count):
+        remaining = max(0.1, seconds - elapsed)
+        segment_seconds = min(clip_duration, remaining)
+        source = valid[index % len(valid)]
+        segment = target.parent / f"segment-{target.stem}-{index:03}.mp4"
         normalize_material(source, segment, segment_seconds, size)
         segments.append(segment)
+        elapsed += segment_seconds
+        if elapsed >= seconds - 0.05:
+            break
 
-    concat_file = target.parent / "concat.txt"
-    concat_file.write_text("\n".join(f"file '{p.name.replace(chr(39), '')}'" for p in segments), encoding="utf-8")
+    concat_file = target.parent / f"concat-{target.stem}.txt"
+    concat_file.write_text("\n".join(f"file '{p.name}'" for p in segments), encoding="utf-8")
     run_ffmpeg(["-f", "concat", "-safe", "0", "-i", concat_file.name, "-c", "copy", target.name], cwd=target.parent)
     return target
+
+
+def _ass_color(hex_color: str, alpha: str = "00") -> str:
+    value = hex_color.lstrip("#")
+    rr, gg, bb = value[0:2], value[2:4], value[4:6]
+    return f"&H{alpha}{bb}{gg}{rr}"
 
 
 def render_final(
@@ -96,6 +116,10 @@ def render_final(
     output: Path,
     srt: Path | None = None,
     subtitle_position: str = "bottom",
+    subtitle_font_size: int = 22,
+    subtitle_color: str = "#FFFFFF",
+    subtitle_outline_color: str = "#000000",
+    subtitle_outline_width: int = 2,
     bgm: Path | None = None,
     bgm_volume: float = 0.12,
 ) -> Path:
@@ -104,9 +128,15 @@ def render_final(
     video_map = "0:v:0"
 
     if srt:
-        margin = 70 if subtitle_position == "bottom" else 600
+        margin = 70 if subtitle_position == "bottom" else 650
         escaped = srt.name.replace("'", "\\'")
-        style = f"FontName=Arial,FontSize=18,PrimaryColour=&H00FFFFFF,OutlineColour=&H90000000,BorderStyle=3,Outline=1,Shadow=0,MarginV={margin},Alignment=2"
+        primary = _ass_color(subtitle_color)
+        outline = _ass_color(subtitle_outline_color)
+        style = (
+            f"FontName=Arial,FontSize={subtitle_font_size},PrimaryColour={primary},"
+            f"OutlineColour={outline},BorderStyle=1,Outline={subtitle_outline_width},"
+            f"Shadow=0,MarginV={margin},Alignment=2"
+        )
         filter_parts.append(f"[0:v]subtitles='{escaped}':force_style='{style}'[vout]")
         video_map = "[vout]"
 
@@ -120,6 +150,10 @@ def render_final(
     args = [*inputs]
     if filter_parts:
         args += ["-filter_complex", ";".join(filter_parts)]
-    args += ["-map", video_map, "-map", audio_map, "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(output)]
+    args += [
+        "-map", video_map, "-map", audio_map,
+        "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+        "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(output),
+    ]
     run_ffmpeg(args, cwd=output.parent)
     return output
