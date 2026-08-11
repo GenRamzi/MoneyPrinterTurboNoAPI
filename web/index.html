@@ -17,7 +17,7 @@
         <button class="nav-item" data-scroll="results"><span>▣</span> النتائج</button>
       </nav>
       <div class="side-status" id="systemStatus"><span class="dot"></span><div><b>جاري الفحص</b><small>FFmpeg & services</small></div></div>
-      <div class="side-note">Local-first • No API keys<br/>Your credentials stay in official CLIs.</div>
+      <div class="side-note">Local-first • No API keys<br/>Credentials stay in official CLIs.</div>
     </aside>
 
     <main>
@@ -27,32 +27,40 @@
       </header>
 
       <section id="accounts" class="panel accounts-panel">
-        <div class="section-head"><div><p class="eyebrow">CONNECTED AI</p><h2>حسابات الذكاء الاصطناعي</h2></div><p>سجّل الدخول عبر الأدوات الرسمية. لا يوجد LLM Settings ولا نسخ ولصق لمفاتيح.</p></div>
+        <div class="section-head"><div><p class="eyebrow">CONNECTED AI</p><h2>حسابات الذكاء الاصطناعي</h2></div><p>ChatGPT وGemini وClaude عبر أدواتهم الرسمية، أو أي نموذج محلي مثبت على Ollama.</p></div>
         <div id="providerGrid" class="provider-grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
       </section>
 
       <section id="creator" class="creator-grid">
         <form id="createForm" class="panel creator-card">
-          <div class="section-head compact"><div><p class="eyebrow">CREATE</p><h2>مشروع جديد</h2></div><span class="badge">4 خطوات في شاشة واحدة</span></div>
+          <div class="section-head compact"><div><p class="eyebrow">CREATE</p><h2>مشروع جديد</h2></div><span class="badge">كل شيء في شاشة واحدة</span></div>
 
           <div class="field full"><label>موضوع الفيديو</label><textarea id="topic" rows="3" placeholder="مثال: 5 أفكار عملية لزيادة التركيز أثناء العمل" required></textarea></div>
 
           <div class="form-grid">
             <div class="field"><label>النموذج</label><select id="provider"></select></div>
-            <div class="field"><label>اللغة</label><select id="language"><option>Arabic</option><option>English</option><option>French</option><option>Spanish</option><option>German</option></select></div>
+            <div class="field hidden" id="ollamaModelRow"><label>نموذج Ollama</label><select id="ollamaModel"></select></div>
+            <div class="field"><label>اللغة</label><select id="language"><option>Arabic</option><option>English</option><option>French</option><option>Spanish</option><option>German</option><option>Turkish</option></select></div>
             <div class="field"><label>المدة المستهدفة</label><div class="range-wrap"><input id="duration" type="range" min="10" max="180" value="45"/><output id="durationOut">45 ثانية</output></div></div>
+            <div class="field"><label>مدة كل لقطة</label><div class="range-wrap"><input id="clipDuration" type="range" min="1" max="12" step="0.5" value="4"/><output id="clipDurationOut">4 ث</output></div></div>
             <div class="field"><label>المقاس</label><div class="segmented"><label><input type="radio" name="aspect" value="9:16" checked><span>9:16</span></label><label><input type="radio" name="aspect" value="16:9"><span>16:9</span></label><label><input type="radio" name="aspect" value="1:1"><span>1:1</span></label></div></div>
-            <div class="field"><label>الصوت</label><select id="voice"></select></div>
+            <div class="field"><label>الصوت</label><div class="field-action"><select id="voice"></select><button type="button" class="mini" id="previewVoice">▶ معاينة</button></div></div>
             <div class="field"><label>عدد النسخ</label><select id="batch"><option value="1">1 فيديو</option><option value="2">2 فيديو</option><option value="3">3 فيديوهات</option><option value="4">4 فيديوهات</option></select></div>
           </div>
+
+          <audio id="voiceAudio" class="voice-audio hidden" controls></audio>
 
           <details class="advanced"><summary>خيارات متقدمة</summary><div class="advanced-body">
             <div class="field full"><label>نص مخصص <small>اتركه فارغًا ليكتبه الذكاء الاصطناعي</small></label><textarea id="script" rows="6" placeholder="اختياري"></textarea></div>
             <div class="field"><label class="check"><input id="subtitles" type="checkbox" checked><span>تضمين الترجمة النصية</span></label></div>
             <div class="field"><label>مكان الترجمة</label><select id="subtitlePosition"><option value="bottom">أسفل</option><option value="center">وسط</option></select></div>
+            <div class="field"><label>حجم خط الترجمة</label><input id="subtitleFontSize" type="number" min="12" max="64" value="22"></div>
+            <div class="field"><label>سماكة إطار الترجمة</label><input id="subtitleOutlineWidth" type="number" min="0" max="8" value="2"></div>
+            <div class="field"><label>لون النص</label><input id="subtitleColor" type="color" value="#ffffff"></div>
+            <div class="field"><label>لون الإطار</label><input id="subtitleOutlineColor" type="color" value="#000000"></div>
           </div></details>
 
-          <div class="upload-zone" id="uploadZone"><input id="materials" type="file" accept="video/*,image/*" multiple hidden><div class="upload-icon">＋</div><div><b>أضف صورًا أو فيديوهات</b><span>اسحب الملفات هنا أو اضغط للاختيار. بدون مواد سيُنشأ خلفية نظيفة تلقائيًا.</span></div><button type="button" class="mini" id="pickMaterials">اختيار ملفات</button></div>
+          <div class="upload-zone" id="uploadZone"><input id="materials" type="file" accept="video/*,image/*" multiple hidden><div class="upload-icon">＋</div><div><b>أضف صورًا أو فيديوهات</b><span>اسحب الملفات هنا أو اضغط للاختيار. سيتم تبديل اللقطات حسب المدة المحددة.</span></div><button type="button" class="mini" id="pickMaterials">اختيار ملفات</button></div>
           <div id="materialList" class="file-list"></div>
 
           <div class="bgm-row"><div class="field"><label>موسيقى خلفية <small>اختياري</small></label><input id="bgm" type="file" accept="audio/*" /></div><div class="field"><label>مستوى الموسيقى</label><input id="bgmVolume" type="range" min="0" max="0.5" step="0.01" value="0.12"></div></div>
@@ -63,7 +71,7 @@
         <aside class="panel task-card">
           <div class="preview-frame"><div class="preview-noise"></div><div class="preview-copy"><span class="pulse-dot"></span><p id="previewStatus">جاهز للإنشاء</p><small id="previewHint">اختر حساب AI وأضف فكرتك</small></div></div>
           <div id="progressBox" class="progress-box hidden"><div class="progress-meta"><b id="progressMessage">Processing</b><span id="progressPercent">0%</span></div><div class="progress-track"><div id="progressBar"></div></div></div>
-          <div class="feature-list"><div><span>01</span><p><b>Script</b><small>كتابة تلقائية أو نصك الخاص</small></p></div><div><span>02</span><p><b>Voice</b><small>Edge neural voices بدون مفتاح</small></p></div><div><span>03</span><p><b>Compose</b><small>مواد + ترجمة + موسيقى + FFmpeg</small></p></div></div>
+          <div class="feature-list"><div><span>01</span><p><b>Script</b><small>كتابة تلقائية أو نصك الخاص</small></p></div><div><span>02</span><p><b>Voice</b><small>أصوات عصبية مع معاينة فورية</small></p></div><div><span>03</span><p><b>Compose</b><small>لقطات + ترجمة + موسيقى + FFmpeg</small></p></div></div>
         </aside>
       </section>
 
