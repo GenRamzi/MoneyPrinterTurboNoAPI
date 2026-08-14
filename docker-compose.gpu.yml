@@ -1,0 +1,8 @@
+services:
+  moneyprinter-noapi:
+    gpus: all
+    environment:
+      MPT_HOST: 0.0.0.0
+      MPT_GPU_BACKEND: ${MPT_GPU_BACKEND:-nvenc}
+    # Requires Docker Compose v2.30+ and NVIDIA Container Toolkit.
+    # For Intel VAAPI, expose /dev/dri and set MPT_GPU_BACKEND=vaapi instead.

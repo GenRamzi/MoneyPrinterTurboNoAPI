@@ -1,0 +1,9 @@
+services:
+  moneyprinter-noapi:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+    environment:
+      MPT_HOST: 0.0.0.0
+      MPT_GPU_BACKEND: ${MPT_GPU_BACKEND:-vaapi}

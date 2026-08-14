@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+This release adds one-click subtitle design templates to the Gradio studio. Templates update ASS/SRT format, position, font, size, text color, outline color, and outline width together, while users can still fine-tune individual values afterward.
+
+Docker now includes dedicated NVIDIA and VAAPI Compose overrides. The default Compose file remains CPU-safe with automatic backend detection, while `docker-compose.gpu.yml` requests `gpus: all` for NVIDIA Container Toolkit deployments and `docker-compose.vaapi.yml` exposes `/dev/dri` for VAAPI.
+
+The release also includes an English user guide covering installation, Gradio usage, ASS subtitles, GPU detection, container execution, benchmarking, and troubleshooting.
+
 ## 0.3.0
 
 This feature release adds an advanced Gradio studio mounted at `/studio`, while preserving the original web UI at `/`. The new interface supports script drafting, voice preview, uploads, batch generation, progress, cancellation, subtitle styling, and encoder selection.

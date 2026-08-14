@@ -56,6 +56,7 @@ class GenerateRequest(BaseModel):
     clip_duration: float = Field(default=4.0, ge=1.0, le=15.0)
     voice: str = "ar-SA-HamedNeural"
     subtitles: bool = True
+    subtitle_template: str = Field(default="creator", min_length=1, max_length=40)
     subtitle_format: Literal["ass", "srt"] = "ass"
     subtitle_position: Literal["bottom", "center", "top"] = "bottom"
     subtitle_font_size: int = Field(default=22, ge=12, le=64)

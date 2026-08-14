@@ -92,17 +92,29 @@ The UI can launch a provider login terminal on common desktop systems. If the ap
 
 ## Docker
 
-Docker is useful for the renderer and Ollama-oriented deployments. Account-based CLI login is usually simpler when running the app directly on the host OS.
+The default Compose file is portable and uses `MPT_GPU_BACKEND=auto`, falling back to CPU when no GPU runtime is available. Account-based CLI login is usually simpler when running the app directly on the host OS.
 
 ```bash
 docker compose up --build
 ```
 
-Then open `http://localhost:8501`. For the advanced Gradio studio, open `http://localhost:8501/studio`.
+For NVIDIA GPU acceleration, install the NVIDIA Container Toolkit on the host and run the dedicated override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+```
+
+The NVIDIA override requests `gpus: all` and defaults to `MPT_GPU_BACKEND=nvenc`. For Linux hosts with Intel or AMD VAAPI, expose `/dev/dri` through the VAAPI override instead:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.vaapi.yml up --build
+```
+
+The container still starts safely on CPU if the default file is used. Verify the active encoder with `curl http://localhost:8501/api/gpu`. Then open `http://localhost:8501`; the advanced Gradio studio is available at `http://localhost:8501/studio`.
 
 ## Advanced Gradio studio
 
-The project includes a Gradio interface mounted at `/studio`. It provides script generation and editing, voice preview, uploads, batch creation, task progress, cancellation, ASS/SRT selection, subtitle styling, and GPU encoder selection. The original lightweight web studio remains available at `/`.
+The project includes a Gradio interface mounted at `/studio`. It provides script generation and editing, voice preview, uploads, batch creation, task progress, cancellation, ASS/SRT selection, subtitle styling, one-click subtitle templates, and GPU encoder selection. The original lightweight web studio remains available at `/`. See the comprehensive English [`USER_GUIDE.md`](docs/USER_GUIDE.md) for installation, Docker, templates, ASS, GPU, benchmarking, and troubleshooting.
 
 ## Current video workflow
 

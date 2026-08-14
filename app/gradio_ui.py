@@ -12,11 +12,16 @@ from app.models.schemas import GenerateRequest, TaskInfo
 from app.providers.registry import provider_registry
 from app.services.gpu import gpu_status
 from app.services.script import generate_script
+from app.services.subtitle_templates import apply_template, list_templates
 from app.services.tasks import task_manager
 from app.services.tts import synthesize
 
 
 VOICE_CHOICES = [(voice["name"], voice["id"]) for voice in VOICES]
+TEMPLATE_CHOICES = [
+    (f"{template['name']} — {template['description']}", template["id"])
+    for template in list_templates()
+]
 GRADIO_CSS = """
 .gradio-container { max-width: 1440px !important; }
 .hero { border-radius: 18px; padding: 18px; background: linear-gradient(135deg,#17152b,#101318); }
@@ -97,6 +102,7 @@ def create_task(
     subtitle_font_size: int,
     subtitle_color: str,
     subtitle_outline_color: str,
+    subtitle_template: str,
     subtitle_outline_width: int,
     subtitle_font_name: str,
     gpu_backend: str,
@@ -120,6 +126,7 @@ def create_task(
         aspect_ratio=aspect_ratio,
         voice=voice,
         subtitles=bool(subtitles),
+        subtitle_template=subtitle_template,
         subtitle_format=subtitle_format,
         subtitle_position=subtitle_position,
         subtitle_font_size=int(subtitle_font_size),
@@ -152,6 +159,25 @@ def poll_task(task_id: str):
     files = _task_files(task) if task.state.value == "completed" else []
     video = next((path for path in files if path.endswith(".mp4")), None)
     return task.progress, f"{task.state.value}: {status}", video, files
+
+
+def apply_subtitle_template(template_id: str):
+    try:
+        values = apply_template(template_id)
+    except ValueError as exc:
+        raise gr.Error(str(exc)) from exc
+    info = f"**{template_id}** applied · {values['subtitle_format'].upper()} · {values['subtitle_position']}"
+    return (
+        values["subtitles"],
+        values["subtitle_format"],
+        values["subtitle_position"],
+        values["subtitle_font_name"],
+        values["subtitle_font_size"],
+        values["subtitle_color"],
+        values["subtitle_outline_color"],
+        values["subtitle_outline_width"],
+        info,
+    )
 
 
 def cancel_task(task_id: str):
@@ -198,6 +224,9 @@ def build_demo() -> gr.Blocks:
                 gpu_info = gr.JSON(value=current_gpu, label="حالة GPU / FFmpeg")
                 refresh_gpu = gr.Button("تحديث حالة GPU")
                 gr.Markdown("### الترجمة")
+                subtitle_template = gr.Dropdown(choices=TEMPLATE_CHOICES, value="creator", label="قالب جاهز")
+                apply_template_button = gr.Button("تطبيق القالب", variant="secondary")
+                template_info = gr.Markdown("اختر قالبًا واضغط تطبيق القالب.", elem_classes=["muted"])
                 subtitles = gr.Checkbox(value=True, label="تضمين الترجمة")
                 subtitle_format = gr.Radio(["ass", "srt"], value="ass", label="التنسيق")
                 subtitle_position = gr.Dropdown(["bottom", "center", "top"], value="bottom", label="الموضع")
@@ -228,12 +257,17 @@ def build_demo() -> gr.Blocks:
         )
         voice_button.click(preview_voice, inputs=[script, voice], outputs=voice_audio)
         refresh_gpu.click(gpu_status, outputs=gpu_info)
+        apply_template_button.click(
+            apply_subtitle_template,
+            inputs=subtitle_template,
+            outputs=[subtitles, subtitle_format, subtitle_position, subtitle_font_name, subtitle_font_size, subtitle_color, subtitle_outline_color, subtitle_outline_width, template_info],
+        )
         create_button.click(
             create_task,
             inputs=[
                 topic, provider, ollama_model, language, duration, clip_duration, aspect_ratio, voice,
-                script, subtitles, subtitle_format, subtitle_position, subtitle_font_size, subtitle_color,
-                subtitle_outline_color, subtitle_outline_width, subtitle_font_name, gpu_backend, materials,
+                script, subtitles, subtitle_format, subtitle_position, subtitle_font_size,                 subtitle_color, subtitle_outline_color, subtitle_template, subtitle_outline_width, subtitle_font_name, gpu_backend, materials,
+
                 bgm, bgm_volume, batch_count,
             ],
             outputs=[task_id, task_status],
