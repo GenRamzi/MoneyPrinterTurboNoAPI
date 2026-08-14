@@ -9,9 +9,10 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.models.schemas import GenerateRequest, TaskInfo, TaskState
-from app.services.media import AUDIO_EXT, IMAGE_EXT, VIDEO_EXT, duration, make_background, render_final
+from app.services.gpu import resolve_encoder
+from app.services.media import AUDIO_EXT, IMAGE_EXT, VIDEO_EXT, dimensions, duration, make_background, render_final
 from app.services.script import generate_script
-from app.services.subtitles import write_srt
+from app.services.subtitles import write_ass, write_srt
 from app.services.tts import synthesize
 
 
@@ -147,7 +148,14 @@ class TaskManager:
         folder.mkdir(parents=True, exist_ok=True)
         try:
             self._check_cancelled(task_id)
-            self._set(task_id, state=TaskState.running, progress=5, message="Preparing project")
+            selection = resolve_encoder(request.gpu_backend)
+            self._set(
+                task_id,
+                state=TaskState.running,
+                progress=5,
+                message=f"Preparing project ({selection.label})",
+                encoder=selection.label,
+            )
             (folder / "request.json").write_text(
                 json.dumps(request.model_dump(), ensure_ascii=False, indent=2), encoding="utf-8"
             )
@@ -181,11 +189,25 @@ class TaskManager:
             if bgm and bgm.suffix.lower() not in AUDIO_EXT:
                 bgm = None
 
-            srt: Path | None = None
+            subtitle_path: Path | None = None
             if request.subtitles:
                 self._check_cancelled(task_id)
-                self._set(task_id, progress=38, message="Creating subtitles")
-                srt = write_srt(script, audio_seconds, folder / "captions.srt")
+                self._set(task_id, progress=38, message=f"Creating {request.subtitle_format.upper()} subtitles")
+                if request.subtitle_format == "ass":
+                    subtitle_path = write_ass(
+                        script,
+                        audio_seconds,
+                        folder / "captions.ass",
+                        position=request.subtitle_position,
+                        font_size=request.subtitle_font_size,
+                        text_color=request.subtitle_color,
+                        outline_color=request.subtitle_outline_color,
+                        outline_width=request.subtitle_outline_width,
+                        play_res=dimensions(request.aspect_ratio),
+                        font_name=request.subtitle_font_name,
+                    )
+                else:
+                    subtitle_path = write_srt(script, audio_seconds, folder / "captions.srt")
 
             outputs: list[str] = []
             for index in range(request.batch_count):
@@ -203,6 +225,7 @@ class TaskManager:
                     audio_seconds,
                     request.aspect_ratio,
                     clip_duration=request.clip_duration,
+                    gpu_backend=selection.backend,
                 )
                 self._check_cancelled(task_id)
                 output = folder / f"video-{index + 1:02}.mp4"
@@ -210,21 +233,24 @@ class TaskManager:
                     background=background,
                     voice=voice_file,
                     output=output,
-                    srt=srt,
+                    srt=subtitle_path if request.subtitle_format == "srt" else None,
+                    ass=subtitle_path if request.subtitle_format == "ass" else None,
                     subtitle_position=request.subtitle_position,
                     subtitle_font_size=request.subtitle_font_size,
                     subtitle_color=request.subtitle_color,
                     subtitle_outline_color=request.subtitle_outline_color,
                     subtitle_outline_width=request.subtitle_outline_width,
+                    subtitle_font_name=request.subtitle_font_name,
                     bgm=bgm,
                     bgm_volume=request.bgm_volume,
+                    gpu_backend=selection.backend,
                 )
                 self._check_cancelled(task_id)
                 outputs.append(output.name)
 
             artifacts = ["request.json", "script.txt"]
-            if srt:
-                artifacts.append("captions.srt")
+            if subtitle_path:
+                artifacts.append("captions.ass" if request.subtitle_format == "ass" else "captions.srt")
             self._set(
                 task_id,
                 state=TaskState.completed,
@@ -232,6 +258,7 @@ class TaskManager:
                 message="Video ready",
                 output_files=outputs,
                 artifact_files=artifacts,
+                encoder=selection.label,
             )
         except TaskCancelled:
             self._set(task_id, state=TaskState.cancelled, progress=100, message="Generation cancelled")

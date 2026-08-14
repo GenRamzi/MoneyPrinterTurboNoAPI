@@ -17,6 +17,14 @@ def test_health_exposes_runtime_capabilities() -> None:
     assert {"ffmpeg", "ffprobe"} <= payload.keys()
 
 
+def test_gpu_endpoint_reports_cpu_fallback(monkeypatch) -> None:
+    monkeypatch.setattr("app.api.gpu_status", lambda: {"selected": "cpu", "hardware": False})
+    response = client.get("/api/gpu")
+    assert response.status_code == 200
+    assert response.json()["selected"] == "cpu"
+    assert response.json()["hardware"] is False
+
+
 def test_health_is_false_when_ffmpeg_is_missing(monkeypatch) -> None:
     monkeypatch.setattr("app.api.shutil.which", lambda name: None if name == "ffmpeg" else "/usr/bin/ffprobe")
     response = client.get("/api/health")

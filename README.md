@@ -98,11 +98,15 @@ Docker is useful for the renderer and Ollama-oriented deployments. Account-based
 docker compose up --build
 ```
 
-Then open `http://localhost:8501`.
+Then open `http://localhost:8501`. For the advanced Gradio studio, open `http://localhost:8501/studio`.
+
+## Advanced Gradio studio
+
+The project includes a Gradio interface mounted at `/studio`. It provides script generation and editing, voice preview, uploads, batch creation, task progress, cancellation, ASS/SRT selection, subtitle styling, and GPU encoder selection. The original lightweight web studio remains available at `/`.
 
 ## Current video workflow
 
-Before rendering, the studio can ask the selected provider for a draft script and shows its approximate word count and spoken duration. The draft remains editable, so the final narration can be reviewed before voice generation starts.
+Before rendering, the studio can ask the selected provider for a draft script and shows its approximate word count and spoken duration. The draft remains editable, so the final narration can be reviewed before voice generation starts. ASS is the default subtitle format for short-form videos and preserves custom font, color, outline, alignment, and RTL-friendly event timing; SRT remains available for compatibility.
 
 1. Choose a connected AI account or an installed Ollama model.
 2. Enter a topic or paste your own script.
@@ -118,12 +122,14 @@ If no visual media is uploaded, the renderer creates a clean generated backgroun
 
 ```text
 web/                         Modern zero-build frontend
-app/main.py                  FastAPI entrypoint + SPA hosting
-app/api.py                   Providers, uploads, tasks, downloads, voice preview
+app/gradio_ui.py             Advanced Gradio studio mounted at /studio
+app/main.py                  FastAPI entrypoint + SPA and Gradio hosting
+app/api.py                   Providers, uploads, tasks, downloads, GPU status, previews
 app/providers/               Official CLI account adapters + Ollama
 app/services/script.py       AI script generation
 app/services/tts.py          Edge neural TTS
-app/services/subtitles.py    SRT timing/generation
+app/services/subtitles.py    ASS/SRT timing and custom styling
+app/services/gpu.py          Encoder detection and GPU/CPU selection
 app/services/media.py        FFmpeg normalization/composition
 app/services/tasks.py        Background job orchestration
 docs/PROVIDERS.md            Provider/security policy
@@ -163,7 +169,7 @@ pytest -q
 
 ### Runtime configuration
 
-Copy `.env.example` to `.env` or export the variables in your shell before starting the server. The most useful controls are `MPT_STORAGE` for the project directory, `MPT_MAX_UPLOAD_MB` and `MPT_MAX_UPLOAD_FILES` for upload limits, and `MPT_MAX_CONCURRENT_TASKS` for renderer concurrency. No provider API keys are stored by this application.
+Copy `.env.example` to `.env` or export the variables in your shell before starting the server. The most useful controls are `MPT_STORAGE` for the project directory, `MPT_MAX_UPLOAD_MB` and `MPT_MAX_UPLOAD_FILES` for upload limits, and `MPT_MAX_CONCURRENT_TASKS` for renderer concurrency. `MPT_GPU_BACKEND=auto` selects NVIDIA NVENC, Intel QSV, or VAAPI when a usable runtime is detected; otherwise it safely uses CPU/libx264. Set `MPT_GPU_BACKEND=cpu` to force CPU or choose a specific backend to fail fast when that runtime is unavailable. No provider API keys are stored by this application.
 
 ### Task history and cancellation
 
@@ -185,7 +191,11 @@ The Docker image exposes `/api/health` as its runtime health endpoint. The endpo
 
 After starting the application, run `MPT_SMOKE_URL=http://127.0.0.1:8501 ./scripts/smoke.sh`. The script submits a custom narration, waits for the background task, downloads the resulting MP4 and script artifact, and verifies the MP4 with ffprobe. It does not require a cloud provider because the narration is supplied in the request, but it does require FFmpeg, ffprobe, and network access for Edge neural TTS.
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the release history.
+### Performance benchmark
+
+Run `MPT_BENCH_URL=http://127.0.0.1:8501 ./scripts/benchmark.sh` to measure the complete generation path and print the selected backend, encoder, elapsed seconds, and task ID. On a host without a usable GPU runtime, the expected result is `backend=cpu encoder="CPU / libx264"`; when NVIDIA NVENC, Intel QSV, or VAAPI is available, `MPT_GPU_BACKEND=auto` selects the detected hardware encoder automatically.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the release history and [`docs/performance.md`](docs/performance.md) for the measured benchmark and GPU limitations of the validation environment.
 
 ## License
 

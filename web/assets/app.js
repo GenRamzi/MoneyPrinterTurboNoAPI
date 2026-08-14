@@ -40,11 +40,11 @@ function providerStatus(provider) {
 
 async function loadHealth() {
   try {
-    const health = await api('/api/health');
-    const ready = health.ffmpeg && health.ffprobe;
+    const [health, gpu] = await Promise.all([api('/api/health'), api('/api/gpu')]);
+    const ready = health.ok;
     $('#systemStatus .dot').classList.toggle('ok', ready);
     $('#systemStatus b').textContent = ready ? 'النظام جاهز' : 'FFmpeg مطلوب';
-    $('#systemStatus small').textContent = ready ? 'Renderer online' : 'Install ffmpeg + ffprobe';
+    $('#systemStatus small').textContent = ready ? `Renderer online · ${gpu.label}` : 'Install ffmpeg + ffprobe';
   } catch {
     $('#systemStatus b').textContent = 'غير متصل';
     $('#systemStatus small').textContent = 'تعذر الوصول إلى الخادم';
@@ -226,10 +226,10 @@ function renderResults(tasks) {
   }
   box.innerHTML = completed.flatMap((task) => task.output_files.map((file, index) => {
     const url = `/api/tasks/${encodeURIComponent(task.id)}/files/${encodeURIComponent(file)}`;
-    const artifacts = (task.artifact_files || []).filter((artifact) => ['script.txt', 'captions.srt', 'request.json'].includes(artifact));
+    const artifacts = (task.artifact_files || []).filter((artifact) => ['script.txt', 'captions.srt', 'captions.ass', 'request.json'].includes(artifact));
     const artifactLinks = artifacts.map((artifact) => {
       const artifactUrl = `/api/tasks/${encodeURIComponent(task.id)}/artifacts/${encodeURIComponent(artifact)}`;
-      const label = artifact === 'script.txt' ? 'النص TXT' : artifact === 'captions.srt' ? 'الترجمة SRT' : 'الإعدادات JSON';
+      const label = artifact === 'script.txt' ? 'النص TXT' : artifact === 'captions.srt' ? 'الترجمة SRT' : artifact === 'captions.ass' ? 'الترجمة ASS' : 'الإعدادات JSON';
       return `<a href="${artifactUrl}" download>${label}</a>`;
     }).join('');
     return `<article class="result-card"><video controls preload="metadata" src="${url}"></video><div class="result-footer"><b>${task.id.slice(0, 8)} · Video ${String(index + 1).padStart(2, '0')}</b><a href="${url}" download>تنزيل MP4 ↗</a></div><div class="result-artifacts">${artifactLinks}</div></article>`;
@@ -313,10 +313,13 @@ async function submit(event) {
       language: $('#language').value, script: $('#script').value.trim() || null,
       duration: +$('#duration').value, aspect_ratio: $('input[name=aspect]:checked').value,
       clip_duration: +$('#clipDuration').value, voice: $('#voice').value,
-      subtitles: $('#subtitles').checked, subtitle_position: $('#subtitlePosition').value,
+      subtitles: $('#subtitles').checked, subtitle_format: $('#subtitleFormat').value,
+      subtitle_position: $('#subtitlePosition').value,
       subtitle_font_size: +$('#subtitleFontSize').value, subtitle_color: $('#subtitleColor').value,
       subtitle_outline_color: $('#subtitleOutlineColor').value,
       subtitle_outline_width: +$('#subtitleOutlineWidth').value,
+      subtitle_font_name: $('#subtitleFontName').value.trim() || 'Arial',
+      gpu_backend: $('#gpuBackend').value,
       material_ids: state.materials.map((item) => item.id), bgm_id: bgmId,
       bgm_volume: +$('#bgmVolume').value, batch_count: +$('#batch').value
     };

@@ -18,6 +18,7 @@ from app.models.schemas import (
 )
 from app.providers.base import ProviderError
 from app.providers.registry import provider_registry
+from app.services.gpu import gpu_status, resolve_encoder
 from app.services.media import AUDIO_EXT, IMAGE_EXT, VIDEO_EXT
 from app.services.script import generate_script
 from app.services.tasks import task_manager
@@ -50,6 +51,11 @@ def health() -> dict:
         "ffmpeg": ffmpeg_available,
         "ffprobe": ffprobe_available,
     }
+
+
+@router.get("/gpu")
+def gpu() -> dict:
+    return gpu_status()
 
 
 @router.get("/providers")
@@ -155,7 +161,8 @@ def create_task(request: GenerateRequest) -> TaskInfo:
         raise HTTPException(status_code=422, detail="Unsupported voice")
     try:
         provider_registry.get(request.provider)
-    except ProviderError as exc:
+        resolve_encoder(request.gpu_backend)
+    except (ProviderError, ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return task_manager.create(request)
 
@@ -188,6 +195,7 @@ def task_artifact(task_id: str, filename: str):
     allowed = {
         "script.txt": "text/plain; charset=utf-8",
         "captions.srt": "application/x-subrip; charset=utf-8",
+        "captions.ass": "text/x-ass; charset=utf-8",
         "request.json": "application/json",
     }
     media_type = allowed.get(filename)

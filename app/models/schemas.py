@@ -56,11 +56,14 @@ class GenerateRequest(BaseModel):
     clip_duration: float = Field(default=4.0, ge=1.0, le=15.0)
     voice: str = "ar-SA-HamedNeural"
     subtitles: bool = True
-    subtitle_position: Literal["bottom", "center"] = "bottom"
+    subtitle_format: Literal["ass", "srt"] = "ass"
+    subtitle_position: Literal["bottom", "center", "top"] = "bottom"
     subtitle_font_size: int = Field(default=22, ge=12, le=64)
     subtitle_color: str = Field(default="#FFFFFF", pattern=r"^#[0-9A-Fa-f]{6}$")
     subtitle_outline_color: str = Field(default="#000000", pattern=r"^#[0-9A-Fa-f]{6}$")
     subtitle_outline_width: int = Field(default=2, ge=0, le=8)
+    subtitle_font_name: str = Field(default="Arial", min_length=1, max_length=80)
+    gpu_backend: Literal["auto", "cpu", "nvenc", "vaapi", "qsv"] = "auto"
     material_ids: list[str] = Field(default_factory=list)
     bgm_id: str | None = None
     bgm_volume: float = Field(default=0.12, ge=0.0, le=1.0)
@@ -75,4 +78,5 @@ class TaskInfo(BaseModel):
     message: str = ""
     output_files: list[str] = Field(default_factory=list)
     artifact_files: list[str] = Field(default_factory=list)
+    encoder: str = ""
     error: str | None = None

@@ -20,6 +20,9 @@ class Settings:
     default_ollama_model: str = os.getenv("MPT_OLLAMA_MODEL", "qwen3:8b")
     ffmpeg_bin: str = os.getenv("FFMPEG_BIN", "ffmpeg")
     ffprobe_bin: str = os.getenv("FFPROBE_BIN", "ffprobe")
+    gpu_backend: str = os.getenv("MPT_GPU_BACKEND", "auto").lower()
+    ffmpeg_preset: str = os.getenv("MPT_FFMPEG_PRESET", "veryfast")
+    ffmpeg_crf: int = int(os.getenv("MPT_FFMPEG_CRF", "21"))
 
     @property
     def uploads_dir(self) -> Path:

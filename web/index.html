@@ -23,7 +23,7 @@
     <main>
       <header class="topbar">
         <div><p class="eyebrow">AI VIDEO STUDIO</p><h1>حوّل فكرتك إلى فيديو، بدون مفاتيح API.</h1></div>
-        <div class="top-actions"><a href="/docs" target="_blank" class="ghost">API Docs</a><button id="refreshProviders" class="ghost">تحديث الحسابات</button></div>
+        <div class="top-actions"><a href="/studio" target="_blank" class="ghost">Gradio Studio</a><a href="/docs" target="_blank" class="ghost">API Docs</a><button id="refreshProviders" class="ghost">تحديث الحسابات</button></div>
       </header>
 
       <section id="accounts" class="panel accounts-panel">
@@ -56,6 +56,9 @@
             <div class="field"><label>مكان الترجمة</label><select id="subtitlePosition"><option value="bottom">أسفل</option><option value="center">وسط</option></select></div>
             <div class="field"><label>حجم خط الترجمة</label><input id="subtitleFontSize" type="number" min="12" max="64" value="22"></div>
             <div class="field"><label>سماكة إطار الترجمة</label><input id="subtitleOutlineWidth" type="number" min="0" max="8" value="2"></div>
+            <div class="field"><label>تنسيق الترجمة</label><select id="subtitleFormat"><option value="ass" selected>ASS مخصص</option><option value="srt">SRT</option></select></div>
+            <div class="field"><label>تسريع الفيديو</label><select id="gpuBackend"><option value="auto" selected>تلقائي</option><option value="cpu">CPU</option><option value="nvenc">NVIDIA NVENC</option><option value="vaapi">VAAPI</option><option value="qsv">Intel QSV</option></select></div>
+            <div class="field"><label>اسم الخط</label><input id="subtitleFontName" type="text" value="Arial" maxlength="80"></div>
             <div class="field"><label>لون النص</label><input id="subtitleColor" type="color" value="#ffffff"></div>
             <div class="field"><label>لون الإطار</label><input id="subtitleOutlineColor" type="color" value="#000000"></div>
           </div></details>

@@ -4,17 +4,18 @@ build-backend = "hatchling.build"
 
 [project]
 name = "moneyprinterturbo-noapi"
-version = "0.2.1"
+version = "0.3.0"
 description = "Local-first short video generator with account-based AI CLI providers and no user API keys."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
-  "fastapi==0.116.1",
+  "fastapi==0.141.1",
   "uvicorn[standard]==0.35.0",
   "python-multipart==0.0.20",
   "edge-tts==7.2.3",
   "pydantic==2.11.7",
+  "gradio==6.24.0",
 ]
 
 [project.optional-dependencies]

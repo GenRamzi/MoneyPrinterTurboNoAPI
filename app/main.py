@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gradio as gr
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +15,10 @@ app = FastAPI(
     description="Local-first AI short-video studio with account-based providers and no user API keys.",
 )
 app.include_router(router)
+
+from app.gradio_ui import GRADIO_CSS, build_demo  # noqa: E402
+
+app = gr.mount_gradio_app(app, build_demo(), path="/studio", theme=gr.themes.Soft(), css=GRADIO_CSS)
 
 web_dir = ROOT / "web"
 assets_dir = web_dir / "assets"
