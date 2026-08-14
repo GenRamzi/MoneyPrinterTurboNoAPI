@@ -42,11 +42,13 @@ VOICE_IDS = {voice["id"] for voice in VOICES}
 
 @router.get("/health")
 def health() -> dict:
+    ffmpeg_available = bool(shutil.which(settings.ffmpeg_bin))
+    ffprobe_available = bool(shutil.which(settings.ffprobe_bin))
     return {
-        "ok": True,
+        "ok": ffmpeg_available and ffprobe_available,
         "app": settings.app_name,
-        "ffmpeg": bool(shutil.which(settings.ffmpeg_bin)),
-        "ffprobe": bool(shutil.which(settings.ffprobe_bin)),
+        "ffmpeg": ffmpeg_available,
+        "ffprobe": ffprobe_available,
     }
 
 

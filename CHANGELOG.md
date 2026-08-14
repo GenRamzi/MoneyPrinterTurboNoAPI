@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+This maintenance release makes `/api/health` report `ok: true` only when both FFmpeg and ffprobe are available. It adds a repository-level full-pipeline smoke test that submits a custom script, waits for task completion, downloads the MP4 and script artifact, and validates the generated media with ffprobe.
+
 ## 0.2.0
 
 This release expands the local-first studio into a more complete and recoverable workflow.

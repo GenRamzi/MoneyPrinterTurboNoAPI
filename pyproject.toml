@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "moneyprinterturbo-noapi"
-version = "0.2.0"
+version = "0.2.1"
 description = "Local-first short video generator with account-based AI CLI providers and no user API keys."
 readme = "README.md"
 requires-python = ">=3.11"

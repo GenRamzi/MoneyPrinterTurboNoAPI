@@ -179,7 +179,11 @@ Each completed task keeps its generated narration, request metadata, and optiona
 
 ### Docker health check
 
-The Docker image exposes `/api/health` as its runtime health endpoint. Docker Compose restarts the service automatically and can report the container as healthy after FFmpeg and the FastAPI process are available.
+The Docker image exposes `/api/health` as its runtime health endpoint. The endpoint returns `ok: true` only when both FFmpeg and ffprobe are available. Docker Compose restarts the service automatically and can report the container as healthy after FFmpeg and the FastAPI process are available.
+
+### Full pipeline smoke test
+
+After starting the application, run `MPT_SMOKE_URL=http://127.0.0.1:8501 ./scripts/smoke.sh`. The script submits a custom narration, waits for the background task, downloads the resulting MP4 and script artifact, and verifies the MP4 with ffprobe. It does not require a cloud provider because the narration is supplied in the request, but it does require FFmpeg, ffprobe, and network access for Edge neural TTS.
 
 See [`CHANGELOG.md`](CHANGELOG.md) for the release history.
 

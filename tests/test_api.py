@@ -13,8 +13,17 @@ def test_health_exposes_runtime_capabilities() -> None:
     response = client.get("/api/health")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["ok"] is True
+    assert payload["ok"] == (payload["ffmpeg"] and payload["ffprobe"])
     assert {"ffmpeg", "ffprobe"} <= payload.keys()
+
+
+def test_health_is_false_when_ffmpeg_is_missing(monkeypatch) -> None:
+    monkeypatch.setattr("app.api.shutil.which", lambda name: None if name == "ffmpeg" else "/usr/bin/ffprobe")
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json()["ok"] is False
+    assert response.json()["ffmpeg"] is False
+    assert response.json()["ffprobe"] is True
 
 
 def test_upload_rejects_unsupported_extension() -> None:
