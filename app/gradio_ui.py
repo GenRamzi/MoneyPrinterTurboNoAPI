@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html
+import re
 import shutil
 import uuid
 from pathlib import Path
@@ -161,7 +163,41 @@ def poll_task(task_id: str):
     return task.progress, f"{task.state.value}: {status}", video, files
 
 
-def apply_subtitle_template(template_id: str):
+def _safe_color(value: str, fallback: str) -> str:
+    return value if re.fullmatch(r"#[0-9A-Fa-f]{6}", value or "") else fallback
+
+
+def preview_subtitle(
+    text: str,
+    position: str,
+    font_name: str,
+    font_size: int,
+    text_color: str,
+    outline_color: str,
+    outline_width: int,
+) -> str:
+    safe_text = html.escape((text or "معاينة الترجمة العربية والإنجليزية").strip())
+    safe_font = html.escape((font_name or "Arial").strip())
+    color = _safe_color(text_color, "#FFFFFF")
+    outline = _safe_color(outline_color, "#000000")
+    size = max(12, min(64, int(font_size or 22)))
+    width = max(0, min(8, int(outline_width or 0)))
+    shadows = ", ".join(
+        f"{dx}px {dy}px 0 {outline}"
+        for dx in range(-width, width + 1)
+        for dy in range(-width, width + 1)
+        if dx or dy
+    ) or "none"
+    justify = {"top": "flex-start", "center": "center", "bottom": "flex-end"}.get(position, "flex-end")
+    return (
+        '<div style="height:260px;border-radius:16px;padding:20px;display:flex;'
+        f'align-items:{justify};justify-content:center;background:linear-gradient(135deg,#111827,#312e81);">'
+        f'<div dir="auto" style="max-width:90%;font-family:{safe_font};font-size:{size}px;'
+        f'line-height:1.25;text-align:center;color:{color};text-shadow:{shadows};">{safe_text}</div></div>'
+    )
+
+
+def apply_subtitle_template(template_id: str, preview_text: str = ""):
     try:
         values = apply_template(template_id)
     except ValueError as exc:
@@ -177,6 +213,15 @@ def apply_subtitle_template(template_id: str):
         values["subtitle_outline_color"],
         values["subtitle_outline_width"],
         info,
+        preview_subtitle(
+            preview_text,
+            values["subtitle_position"],
+            values["subtitle_font_name"],
+            values["subtitle_font_size"],
+            values["subtitle_color"],
+            values["subtitle_outline_color"],
+            values["subtitle_outline_width"],
+        ),
     )
 
 
@@ -227,6 +272,7 @@ def build_demo() -> gr.Blocks:
                 subtitle_template = gr.Dropdown(choices=TEMPLATE_CHOICES, value="creator", label="قالب جاهز")
                 apply_template_button = gr.Button("تطبيق القالب", variant="secondary")
                 template_info = gr.Markdown("اختر قالبًا واضغط تطبيق القالب.", elem_classes=["muted"])
+                preview_text = gr.Textbox(value="تعلم بسرعة مع ترجمة واضحة", lines=2, label="نص المعاينة الحية")
                 subtitles = gr.Checkbox(value=True, label="تضمين الترجمة")
                 subtitle_format = gr.Radio(["ass", "srt"], value="ass", label="التنسيق")
                 subtitle_position = gr.Dropdown(["bottom", "center", "top"], value="bottom", label="الموضع")
@@ -237,6 +283,10 @@ def build_demo() -> gr.Blocks:
                 with gr.Row():
                     subtitle_color = gr.Textbox(value="#FFFFFF", label="لون النص")
                     subtitle_outline_color = gr.Textbox(value="#000000", label="لون الإطار")
+                subtitle_preview = gr.HTML(
+                    preview_subtitle("تعلم بسرعة مع ترجمة واضحة", "bottom", "Arial", 22, "#FFFFFF", "#000000", 2),
+                    label="معاينة حية",
+                )
         with gr.Row():
             materials = gr.File(file_count="multiple", file_types=[".mp4", ".mov", ".mkv", ".webm", ".jpg", ".jpeg", ".png", ".webp"], type="filepath", label="صور وفيديوهات")
             bgm = gr.File(file_count="single", file_types=[".mp3", ".wav", ".m4a", ".aac", ".ogg"], type="filepath", label="موسيقى خلفية")
@@ -259,9 +309,15 @@ def build_demo() -> gr.Blocks:
         refresh_gpu.click(gpu_status, outputs=gpu_info)
         apply_template_button.click(
             apply_subtitle_template,
-            inputs=subtitle_template,
-            outputs=[subtitles, subtitle_format, subtitle_position, subtitle_font_name, subtitle_font_size, subtitle_color, subtitle_outline_color, subtitle_outline_width, template_info],
+            inputs=[subtitle_template, preview_text],
+            outputs=[subtitles, subtitle_format, subtitle_position, subtitle_font_name, subtitle_font_size, subtitle_color, subtitle_outline_color, subtitle_outline_width, template_info, subtitle_preview],
         )
+        for live_component in [preview_text, subtitle_position, subtitle_font_name, subtitle_font_size, subtitle_color, subtitle_outline_color, subtitle_outline_width]:
+            live_component.change(
+                preview_subtitle,
+                inputs=[preview_text, subtitle_position, subtitle_font_name, subtitle_font_size, subtitle_color, subtitle_outline_color, subtitle_outline_width],
+                outputs=subtitle_preview,
+            )
         create_button.click(
             create_task,
             inputs=[

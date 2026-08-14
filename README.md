@@ -126,7 +126,9 @@ Before rendering, the studio can ask the selected provider for a draft script an
 4. Preview the voice if desired.
 5. Configure subtitles and upload any number of images/videos. The renderer cycles them for the duration of the narration.
 6. Optionally add background music.
-7. Generate one to four output variants. The task engine stores project artifacts under `storage/tasks/<task-id>/`.
+7. Choose one to four output variants. The task engine renders variants with a bounded worker pool, preserves output order, and stores project artifacts under `storage/tasks/<task-id>`.
+
+The template panel includes dedicated **Breaking News**, **Education Focus**, and **Education Highlight** styles in addition to the general creator templates. The live preview updates as the subtitle text or style controls change, before any FFmpeg work starts.
 
 If no visual media is uploaded, the renderer creates a clean generated background so the pipeline remains usable without any stock-media API.
 
@@ -141,6 +143,7 @@ app/providers/               Official CLI account adapters + Ollama
 app/services/script.py       AI script generation
 app/services/tts.py          Edge neural TTS
 app/services/subtitles.py    ASS/SRT timing and custom styling
+app/services/subtitle_templates.py One-click subtitle style catalog
 app/services/gpu.py          Encoder detection and GPU/CPU selection
 app/services/media.py        FFmpeg normalization/composition
 app/services/tasks.py        Background job orchestration
@@ -181,7 +184,7 @@ pytest -q
 
 ### Runtime configuration
 
-Copy `.env.example` to `.env` or export the variables in your shell before starting the server. The most useful controls are `MPT_STORAGE` for the project directory, `MPT_MAX_UPLOAD_MB` and `MPT_MAX_UPLOAD_FILES` for upload limits, and `MPT_MAX_CONCURRENT_TASKS` for renderer concurrency. `MPT_GPU_BACKEND=auto` selects NVIDIA NVENC, Intel QSV, or VAAPI when a usable runtime is detected; otherwise it safely uses CPU/libx264. Set `MPT_GPU_BACKEND=cpu` to force CPU or choose a specific backend to fail fast when that runtime is unavailable. No provider API keys are stored by this application.
+Copy `.env.example` to `.env` or export the variables in your shell before starting the server. The most useful controls are `MPT_STORAGE` for the project directory, `MPT_MAX_UPLOAD_MB` and `MPT_MAX_UPLOAD_FILES` for upload limits, `MPT_MAX_CONCURRENT_TASKS` for independent task concurrency, and `MPT_MAX_BATCH_WORKERS` for parallel variants inside one task. `MPT_GPU_BACKEND=auto` selects NVIDIA NVENC, Intel QSV, or VAAPI when a usable runtime is detected; otherwise it safely uses CPU/libx264. Set `MPT_GPU_BACKEND=cpu` to force CPU or choose a specific backend to fail fast when that runtime is unavailable. No provider API keys are stored by this application.
 
 ### Task history and cancellation
 
@@ -193,7 +196,7 @@ The continuous-integration workflow compiles the application, runs Ruff, and exe
 
 ### Project artifacts
 
-Each completed task keeps its generated narration, request metadata, and optional SRT subtitles next to the MP4 outputs. The results panel exposes safe download links for these artifacts, which makes it easier to revise a script, archive a project, or reuse subtitles in another editor.
+Each completed task keeps its generated narration, request metadata, and optional ASS or SRT subtitles next to the MP4 outputs. The results panel exposes safe download links for these artifacts, which makes it easier to revise a script, archive a project, or reuse subtitles in another editor.
 
 ### Docker health check
 
@@ -205,7 +208,11 @@ After starting the application, run `MPT_SMOKE_URL=http://127.0.0.1:8501 ./scrip
 
 ### Performance benchmark
 
-Run `MPT_BENCH_URL=http://127.0.0.1:8501 ./scripts/benchmark.sh` to measure the complete generation path and print the selected backend, encoder, elapsed seconds, and task ID. On a host without a usable GPU runtime, the expected result is `backend=cpu encoder="CPU / libx264"`; when NVIDIA NVENC, Intel QSV, or VAAPI is available, `MPT_GPU_BACKEND=auto` selects the detected hardware encoder automatically.
+Run `MPT_BENCH_URL=http://127.0.0.1:8501 MPT_BENCH_BATCH_COUNT=2 ./scripts/benchmark.sh` to measure the complete parallel batch path and print the selected backend, encoder, batch count, elapsed seconds, and task ID. On a host without a usable GPU runtime, the expected result is `backend=cpu encoder="CPU / libx264"`; when NVIDIA NVENC, Intel QSV, or VAAPI is available, `MPT_GPU_BACKEND=auto` selects the detected hardware encoder automatically.
+
+### Automatic installation
+
+Linux users can run `./scripts/install.sh`. Windows users can run `Set-ExecutionPolicy -Scope Process Bypass; .\\scripts\\install.ps1` or double-click `scripts\\install.bat`. The installers create `.venv`, install project dependencies, install or verify FFmpeg through the supported package manager, and report detected GPU runtimes.
 
 See [`CHANGELOG.md`](CHANGELOG.md) for the release history and [`docs/performance.md`](docs/performance.md) for the measured benchmark and GPU limitations of the validation environment.
 

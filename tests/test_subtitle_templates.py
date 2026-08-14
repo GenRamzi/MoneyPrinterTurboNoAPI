@@ -8,7 +8,7 @@ from app.services.subtitle_templates import apply_template, get_template, list_t
 def test_template_catalog_contains_multiple_styles():
     templates = list_templates()
     assert len(templates) >= 5
-    assert {"creator", "neon", "compatibility"} <= {item["id"] for item in templates}
+    assert {"creator", "neon", "compatibility", "breaking-news", "education-focus", "education-highlight"} <= {item["id"] for item in templates}
 
 
 def test_apply_template_returns_complete_style_payload():

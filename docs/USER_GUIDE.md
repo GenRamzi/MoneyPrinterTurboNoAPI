@@ -74,7 +74,7 @@ The progress area reports the active task state and selected encoder. The **Canc
 
 ## 5. One-Click Subtitle Templates
 
-The subtitle panel contains a template dropdown and an **Apply Template** button. Choose a template, press the button once, and the studio updates the subtitle format, position, font, size, text color, outline color, and outline width together.
+The subtitle panel contains a template dropdown, a live preview text box, and an **Apply Template** button. Choose a template, press the button once, and the studio updates the subtitle format, position, font, size, text color, outline color, and outline width together. Edit the preview text or any style control to see the HTML preview update immediately before rendering.
 
 | Template | Best for | Output |
 |---|---|---|
@@ -83,6 +83,9 @@ The subtitle panel contains a template dropdown and an **Apply Template** button
 | Sunset Yellow | Dark footage and warm editorial styles | ASS |
 | Minimal Clean | Low-noise educational or product content | ASS |
 | Top News | Facts, announcements, and news layouts | ASS |
+| Breaking News | Urgent news reels and alerts | ASS |
+| Education Focus | Lessons, explainers, and tutorials | ASS |
+| Education Highlight | Definitions, formulas, and key takeaways | ASS |
 | SRT Compatibility | Editors or players without ASS support | SRT |
 
 You can apply a template and then manually refine any individual setting. ASS remains the default because it preserves styling information. SRT is provided as a compatibility output and does not carry the same visual style metadata.
@@ -168,7 +171,30 @@ docker compose \
 
 The override exposes `/dev/dri` and sets `MPT_GPU_BACKEND=vaapi`. The host user and container must have permission to access the render device.
 
-## 9. Measuring Performance
+## 9. Batch Processing and Parallel Rendering
+
+Set the batch count in the Gradio studio to create multiple variants from the same narration. Visual materials are rotated between variants, and the rendering phase uses a bounded thread pool so several FFmpeg jobs can run concurrently without creating an unbounded number of processes. Configure the limits with `MPT_MAX_CONCURRENT_TASKS` for independent tasks and `MPT_MAX_BATCH_WORKERS` for variants within one task. Results remain ordered as `video-01.mp4`, `video-02.mp4`, and so on even when individual renders finish at different times.
+
+The best worker count depends on the host. CPU-only machines should use a small value such as 1 or 2. A GPU encoder may support more concurrent renders, but VRAM, disk throughput, and thermals still limit useful parallelism.
+
+## 10. Automatic Installation
+
+On Debian/Ubuntu or Homebrew-based Linux/macOS environments, run:
+
+```bash
+./scripts/install.sh
+```
+
+On Windows PowerShell, run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\\scripts\\install.ps1
+```
+
+Windows users can also double-click `scripts\\install.bat`. The scripts create `.venv`, install the project and development dependencies, install or verify FFmpeg where the supported package manager is available, and report whether NVIDIA or VAAPI/QSV hardware appears to be available. NVIDIA drivers and container runtimes remain host prerequisites and are not silently replaced by the installer.
+
+## 11. Measuring Performance
 
 Run the full-pipeline smoke test after starting the service:
 
@@ -184,7 +210,7 @@ MPT_BENCH_URL=http://127.0.0.1:8501 ./scripts/benchmark.sh
 
 The benchmark prints the selected backend, encoder label, elapsed seconds, and task ID. Do not compare CPU and GPU timings from different machines as a controlled speedup claim. Measure both modes on the same host, with the same script, aspect ratio, duration, materials, and batch count.
 
-## 10. Troubleshooting
+## 12. Troubleshooting
 
 If `/api/health` reports `ok: false`, install FFmpeg and ffprobe or correct `FFMPEG_BIN` and `FFPROBE_BIN`. If a provider cannot generate text, run its official login command and verify that the CLI works in the same user environment as the server. If the Gradio page is unavailable, confirm that the server started without import errors and that the installed package includes `gradio==6.24.0`.
 
@@ -192,7 +218,7 @@ If ASS captions are not visible in the final MP4, verify that the selected font 
 
 If a GPU backend fails, first set `MPT_GPU_BACKEND=auto` to confirm that the project can fall back to CPU. Then verify the runtime device, drivers, FFmpeg encoder support, and container GPU exposure. An encoder name printed by FFmpeg without a visible device does not guarantee that hardware encoding can run.
 
-## 11. Development Checks
+## 13. Development Checks
 
 Run the complete local quality gate before submitting changes:
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import threading
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -209,15 +209,8 @@ class TaskManager:
                 else:
                     subtitle_path = write_srt(script, audio_seconds, folder / "captions.srt")
 
-            outputs: list[str] = []
-            for index in range(request.batch_count):
+            def render_variant(index: int) -> tuple[int, str]:
                 self._check_cancelled(task_id)
-                base = 42 + int(index * (48 / max(1, request.batch_count)))
-                self._set(
-                    task_id,
-                    progress=min(base, 88),
-                    message=f"Rendering video {index + 1}/{request.batch_count}",
-                )
                 ordered = visual_materials[index:] + visual_materials[:index] if visual_materials else []
                 background = make_background(
                     ordered,
@@ -246,7 +239,26 @@ class TaskManager:
                     gpu_backend=selection.backend,
                 )
                 self._check_cancelled(task_id)
-                outputs.append(output.name)
+                return index, output.name
+
+            outputs_by_index: dict[int, str] = {}
+            worker_count = min(request.batch_count, max(1, settings.max_batch_workers))
+            self._set(
+                task_id,
+                progress=42,
+                message=f"Rendering {request.batch_count} videos with {worker_count} worker(s)",
+            )
+            with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix=f"mpt-batch-{task_id[:8]}") as batch_pool:
+                futures = [batch_pool.submit(render_variant, index) for index in range(request.batch_count)]
+                for completed, future in enumerate(as_completed(futures), start=1):
+                    index, filename = future.result()
+                    outputs_by_index[index] = filename
+                    self._set(
+                        task_id,
+                        progress=min(42 + int(completed * 48 / request.batch_count), 90),
+                        message=f"Rendered {completed}/{request.batch_count} videos in parallel",
+                    )
+            outputs = [outputs_by_index[index] for index in range(request.batch_count)]
 
             artifacts = ["request.json", "script.txt"]
             if subtitle_path:
@@ -255,7 +267,7 @@ class TaskManager:
                 task_id,
                 state=TaskState.completed,
                 progress=100,
-                message="Video ready",
+                message=f"Video ready ({request.batch_count} variant(s))",
                 output_files=outputs,
                 artifact_files=artifacts,
                 encoder=selection.label,

@@ -10,6 +10,7 @@ def test_generate_request_defaults():
     assert request.aspect_ratio == "9:16"
     assert request.clip_duration == 4.0
     assert request.subtitle_color == "#FFFFFF"
+    assert request.subtitle_template == "creator"
     assert request.subtitle_format == "ass"
     assert request.gpu_backend == "auto"
     assert request.batch_count == 1

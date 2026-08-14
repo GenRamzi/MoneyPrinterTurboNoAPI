@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+This release adds Breaking News, Education Focus, and Education Highlight subtitle templates, plus a live HTML preview that reacts to text and style changes before rendering.
+
+Batch rendering now uses a bounded nested thread pool. Multiple variants can be rendered concurrently, progress updates remain persisted, and output filenames preserve deterministic order even when workers finish at different times. `MPT_MAX_BATCH_WORKERS` controls the per-task limit.
+
+Linux and Windows installation helpers are included as `scripts/install.sh`, `scripts/install.ps1`, and `scripts/install.bat`. They create the virtual environment, install the project, verify or install FFmpeg where supported, and report available GPU runtimes.
+
 ## 0.4.0
 
 This release adds one-click subtitle design templates to the Gradio studio. Templates update ASS/SRT format, position, font, size, text color, outline color, and outline width together, while users can still fine-tune individual values afterward.
