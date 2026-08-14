@@ -154,9 +154,22 @@ The original MIT copyright notice is retained.
 
 ```bash
 pip install -e ".[dev]"
-pytest -q
 python -m compileall -q app
+ruff check .
+pytest -q
 ```
+
+### Runtime configuration
+
+Copy `.env.example` to `.env` or export the variables in your shell before starting the server. The most useful controls are `MPT_STORAGE` for the project directory, `MPT_MAX_UPLOAD_MB` and `MPT_MAX_UPLOAD_FILES` for upload limits, and `MPT_MAX_CONCURRENT_TASKS` for renderer concurrency. No provider API keys are stored by this application.
+
+### Task history and cancellation
+
+Task manifests are written atomically under `storage/tasks/<task-id>/task.json`. Completed tasks are restored into the task history after a server restart, while tasks that were still queued or running are marked as interrupted instead of being shown as indefinitely active. The web studio also restores an active task from the browser session, retries temporary polling failures, and exposes a cancellation control for queued or running work.
+
+### Quality gates
+
+The continuous-integration workflow compiles the application, runs Ruff, and executes the complete pytest suite. The API tests cover runtime health reporting, upload validation, provider validation, and voice validation in addition to the existing media and schema tests.
 
 ## License
 
