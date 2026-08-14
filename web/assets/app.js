@@ -141,6 +141,37 @@ async function onMaterials(files) {
   }
 }
 
+async function previewScript() {
+  const button = $('#previewScript');
+  const topic = $('#topic').value.trim();
+  if (topic.length < 2) {
+    toast('اكتب موضوع الفيديو أولاً', true);
+    $('#topic').focus();
+    return;
+  }
+  button.disabled = true;
+  try {
+    const data = await api('/api/scripts/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic,
+        provider: $('#provider').value,
+        ollama_model: $('#provider').value === 'ollama' ? $('#ollamaModel').value : null,
+        language: $('#language').value,
+        duration: +$('#duration').value
+      })
+    });
+    $('#script').value = data.script;
+    $('#scriptMeta').textContent = `${data.word_count} كلمة · مدة صوتية تقريبية ${data.estimated_seconds} ثانية`;
+    toast('تم اقتراح النص ويمكنك تعديله قبل الإنشاء');
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function previewVoice() {
   const button = $('#previewVoice');
   button.disabled = true;
@@ -195,7 +226,13 @@ function renderResults(tasks) {
   }
   box.innerHTML = completed.flatMap((task) => task.output_files.map((file, index) => {
     const url = `/api/tasks/${encodeURIComponent(task.id)}/files/${encodeURIComponent(file)}`;
-    return `<article class="result-card"><video controls preload="metadata" src="${url}"></video><div class="result-footer"><b>${task.id.slice(0, 8)} · Video ${String(index + 1).padStart(2, '0')}</b><a href="${url}" download>تنزيل MP4 ↗</a></div></article>`;
+    const artifacts = (task.artifact_files || []).filter((artifact) => ['script.txt', 'captions.srt', 'request.json'].includes(artifact));
+    const artifactLinks = artifacts.map((artifact) => {
+      const artifactUrl = `/api/tasks/${encodeURIComponent(task.id)}/artifacts/${encodeURIComponent(artifact)}`;
+      const label = artifact === 'script.txt' ? 'النص TXT' : artifact === 'captions.srt' ? 'الترجمة SRT' : 'الإعدادات JSON';
+      return `<a href="${artifactUrl}" download>${label}</a>`;
+    }).join('');
+    return `<article class="result-card"><video controls preload="metadata" src="${url}"></video><div class="result-footer"><b>${task.id.slice(0, 8)} · Video ${String(index + 1).padStart(2, '0')}</b><a href="${url}" download>تنزيل MP4 ↗</a></div><div class="result-artifacts">${artifactLinks}</div></article>`;
   })).join('');
   $('#resultsCaption').textContent = `${completed.reduce((count, task) => count + task.output_files.length, 0)} ملف جاهز`;
 }
@@ -300,6 +337,8 @@ function bind() {
   $('#refreshProviders').onclick = loadProviders;
   $('#provider').onchange = onProviderChange;
   $('#previewVoice').onclick = previewVoice;
+  $('#previewScript').onclick = previewScript;
+  $('#script').oninput = () => { $('#scriptMeta').textContent = ''; };
   $('#cancelTask').onclick = cancelTask;
   $('#createForm').onsubmit = submit;
   $('#duration').oninput = (event) => { $('#durationOut').value = `${event.target.value} ثانية`; };

@@ -51,7 +51,7 @@
           <audio id="voiceAudio" class="voice-audio hidden" controls></audio>
 
           <details class="advanced"><summary>خيارات متقدمة</summary><div class="advanced-body">
-            <div class="field full"><label>نص مخصص <small>اتركه فارغًا ليكتبه الذكاء الاصطناعي</small></label><textarea id="script" rows="6" placeholder="اختياري"></textarea></div>
+            <div class="field full"><label class="label-action"><span>نص مخصص <small>اتركه فارغًا ليكتبه الذكاء الاصطناعي</small></span><button type="button" class="mini" id="previewScript">اقتراح نص</button></label><textarea id="script" rows="6" placeholder="اختياري"></textarea><small id="scriptMeta" class="field-hint"></small></div>
             <div class="field"><label class="check"><input id="subtitles" type="checkbox" checked><span>تضمين الترجمة النصية</span></label></div>
             <div class="field"><label>مكان الترجمة</label><select id="subtitlePosition"><option value="bottom">أسفل</option><option value="center">وسط</option></select></div>
             <div class="field"><label>حجم خط الترجمة</label><input id="subtitleFontSize" type="number" min="12" max="64" value="22"></div>

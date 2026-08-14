@@ -222,11 +222,24 @@ class TaskManager:
                 self._check_cancelled(task_id)
                 outputs.append(output.name)
 
-            self._set(task_id, state=TaskState.completed, progress=100, message="Video ready", output_files=outputs)
+            artifacts = ["request.json", "script.txt"]
+            if srt:
+                artifacts.append("captions.srt")
+            self._set(
+                task_id,
+                state=TaskState.completed,
+                progress=100,
+                message="Video ready",
+                output_files=outputs,
+                artifact_files=artifacts,
+            )
         except TaskCancelled:
             self._set(task_id, state=TaskState.cancelled, progress=100, message="Generation cancelled")
         except Exception as exc:
             self._set(task_id, state=TaskState.failed, progress=100, message="Generation failed", error=str(exc)[:2000])
+        finally:
+            with self._lock:
+                self._cancel_events.pop(task_id, None)
 
 
 task_manager = TaskManager()

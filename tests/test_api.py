@@ -54,3 +54,24 @@ def test_voice_preview_rejects_unknown_voice() -> None:
     )
     assert response.status_code == 422
     assert response.json()["detail"] == "Unsupported voice"
+
+
+def test_script_preview_returns_generated_metadata(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.api.generate_script",
+        lambda *args, **kwargs: "هذا نص قصير للتجربة قبل التصيير",
+    )
+    response = client.post(
+        "/api/scripts/preview",
+        json={"topic": "اختبار النص", "provider": "gemini", "duration": 20},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["script"] == "هذا نص قصير للتجربة قبل التصيير"
+    assert payload["word_count"] == 6
+    assert payload["estimated_seconds"] == 3
+
+
+def test_missing_task_artifact_returns_not_found() -> None:
+    response = client.get("/api/tasks/does-not-exist/artifacts/script.txt")
+    assert response.status_code == 404

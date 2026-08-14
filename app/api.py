@@ -9,10 +9,17 @@ from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
 from app.core.config import settings
-from app.models.schemas import GenerateRequest, TaskInfo, VoicePreviewRequest
+from app.models.schemas import (
+    GenerateRequest,
+    ScriptPreviewRequest,
+    ScriptPreviewResponse,
+    TaskInfo,
+    VoicePreviewRequest,
+)
 from app.providers.base import ProviderError
 from app.providers.registry import provider_registry
 from app.services.media import AUDIO_EXT, IMAGE_EXT, VIDEO_EXT
+from app.services.script import generate_script
 from app.services.tasks import task_manager
 from app.services.tts import synthesize
 
@@ -67,6 +74,27 @@ def provider_login(provider_id: str) -> dict:
 @router.get("/voices")
 def voices() -> list[dict[str, str]]:
     return VOICES
+
+
+@router.post("/scripts/preview", response_model=ScriptPreviewResponse)
+def script_preview(request: ScriptPreviewRequest) -> ScriptPreviewResponse:
+    try:
+        provider_registry.get(request.provider)
+    except ProviderError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    try:
+        script = generate_script(
+            request.provider,
+            request.topic,
+            request.language,
+            request.duration,
+            model=request.ollama_model if request.provider == "ollama" else None,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    words = len(script.split())
+    estimated_seconds = max(1, round(words / 2.15))
+    return ScriptPreviewResponse(script=script, word_count=words, estimated_seconds=estimated_seconds)
 
 
 @router.post("/voices/preview")
@@ -149,6 +177,27 @@ def cancel_task(task_id: str) -> TaskInfo:
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
+
+@router.get("/tasks/{task_id}/artifacts/{filename}")
+def task_artifact(task_id: str, filename: str):
+    if Path(task_id).name != task_id or Path(filename).name != filename:
+        raise HTTPException(status_code=400, detail="Invalid path")
+    allowed = {
+        "script.txt": "text/plain; charset=utf-8",
+        "captions.srt": "application/x-subrip; charset=utf-8",
+        "request.json": "application/json",
+    }
+    media_type = allowed.get(filename)
+    if not media_type:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    task = task_manager.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    path = (settings.tasks_dir / task_id / filename).resolve()
+    if path.parent != (settings.tasks_dir / task_id).resolve() or not path.is_file():
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    return FileResponse(path, media_type=media_type, filename=filename)
 
 
 @router.get("/tasks/{task_id}/files/{filename}")
