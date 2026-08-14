@@ -102,6 +102,8 @@ Then open `http://localhost:8501`.
 
 ## Current video workflow
 
+Before rendering, the studio can ask the selected provider for a draft script and shows its approximate word count and spoken duration. The draft remains editable, so the final narration can be reviewed before voice generation starts.
+
 1. Choose a connected AI account or an installed Ollama model.
 2. Enter a topic or paste your own script.
 3. Choose language, target duration, shot duration, aspect ratio, and voice.
@@ -154,9 +156,32 @@ The original MIT copyright notice is retained.
 
 ```bash
 pip install -e ".[dev]"
-pytest -q
 python -m compileall -q app
+ruff check .
+pytest -q
 ```
+
+### Runtime configuration
+
+Copy `.env.example` to `.env` or export the variables in your shell before starting the server. The most useful controls are `MPT_STORAGE` for the project directory, `MPT_MAX_UPLOAD_MB` and `MPT_MAX_UPLOAD_FILES` for upload limits, and `MPT_MAX_CONCURRENT_TASKS` for renderer concurrency. No provider API keys are stored by this application.
+
+### Task history and cancellation
+
+Task manifests are written atomically under `storage/tasks/<task-id>/task.json`. Completed tasks are restored into the task history after a server restart, while tasks that were still queued or running are marked as interrupted instead of being shown as indefinitely active. The web studio also restores an active task from the browser session, retries temporary polling failures, and exposes a cancellation control for queued or running work.
+
+### Quality gates
+
+The continuous-integration workflow compiles the application, runs Ruff, and executes the complete pytest suite. The API tests cover runtime health reporting, upload validation, provider validation, voice validation, script preview, and artifact handling in addition to the existing media and schema tests.
+
+### Project artifacts
+
+Each completed task keeps its generated narration, request metadata, and optional SRT subtitles next to the MP4 outputs. The results panel exposes safe download links for these artifacts, which makes it easier to revise a script, archive a project, or reuse subtitles in another editor.
+
+### Docker health check
+
+The Docker image exposes `/api/health` as its runtime health endpoint. Docker Compose restarts the service automatically and can report the container as healthy after FFmpeg and the FastAPI process are available.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the release history.
 
 ## License
 

@@ -41,8 +41,13 @@ def duration(path: Path) -> float:
     )
     if p.returncode != 0:
         raise RuntimeError(p.stderr.strip() or "ffprobe failed")
-    data = json.loads(p.stdout)
-    return float(data["format"]["duration"])
+    try:
+        value = float(json.loads(p.stdout)["format"]["duration"])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Unable to read media duration for {path.name}") from exc
+    if not math.isfinite(value) or value <= 0:
+        raise RuntimeError(f"Media has an invalid duration: {path.name}")
+    return value
 
 
 def dimensions(aspect_ratio: str) -> tuple[int, int]:

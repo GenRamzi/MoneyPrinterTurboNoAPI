@@ -11,6 +11,7 @@ class TaskState(str, Enum):
     running = "running"
     completed = "completed"
     failed = "failed"
+    cancelled = "cancelled"
 
 
 class ProviderInfo(BaseModel):
@@ -28,6 +29,20 @@ class ProviderInfo(BaseModel):
 class VoicePreviewRequest(BaseModel):
     voice: str
     text: str = Field(default="مرحباً بك في MoneyPrinterTurbo NoAPI", min_length=2, max_length=220)
+
+
+class ScriptPreviewRequest(BaseModel):
+    topic: str = Field(min_length=2, max_length=1000)
+    provider: str = "gemini"
+    ollama_model: str | None = Field(default=None, max_length=200)
+    language: str = "Arabic"
+    duration: int = Field(default=45, ge=10, le=600)
+
+
+class ScriptPreviewResponse(BaseModel):
+    script: str
+    word_count: int
+    estimated_seconds: int
 
 
 class GenerateRequest(BaseModel):
@@ -56,6 +71,8 @@ class TaskInfo(BaseModel):
     id: str
     state: TaskState
     progress: int = 0
+    created_at: str = ""
     message: str = ""
     output_files: list[str] = Field(default_factory=list)
+    artifact_files: list[str] = Field(default_factory=list)
     error: str | None = None

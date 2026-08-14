@@ -14,6 +14,8 @@ class Settings:
     port: int = int(os.getenv("MPT_PORT", "8501"))
     storage_dir: Path = Path(os.getenv("MPT_STORAGE", ROOT / "storage")).resolve()
     max_upload_mb: int = int(os.getenv("MPT_MAX_UPLOAD_MB", "500"))
+    max_upload_files: int = int(os.getenv("MPT_MAX_UPLOAD_FILES", "20"))
+    max_concurrent_tasks: int = int(os.getenv("MPT_MAX_CONCURRENT_TASKS", "2"))
     default_provider: str = os.getenv("MPT_PROVIDER", "gemini")
     default_ollama_model: str = os.getenv("MPT_OLLAMA_MODEL", "qwen3:8b")
     ffmpeg_bin: str = os.getenv("FFMPEG_BIN", "ffmpeg")

@@ -13,16 +13,26 @@ from app.providers.base import ProviderDescriptor, ProviderError, TextProvider
 def _run(args: list[str], timeout: int = 180, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env.setdefault("NO_COLOR", "1")
-    return subprocess.run(
-        args,
-        text=True,
-        capture_output=True,
-        timeout=timeout,
-        cwd=str(cwd or settings.storage_dir),
-        env=env,
-        stdin=subprocess.DEVNULL,
-        check=False,
-    )
+    try:
+        return subprocess.run(
+            args,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            cwd=str(cwd or settings.storage_dir),
+            env=env,
+            stdin=subprocess.DEVNULL,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(
+            args,
+            returncode=124,
+            stdout="",
+            stderr=f"Provider command timed out after {timeout} seconds",
+        )
+    except OSError as exc:
+        return subprocess.CompletedProcess(args, returncode=127, stdout="", stderr=str(exc))
 
 
 class CodexProvider(TextProvider):
